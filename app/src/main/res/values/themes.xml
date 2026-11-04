@@ -1,0 +1,5 @@
+<resources>
+    <style name="Theme.EatsToday" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#FFF9F6</item>
+    </style>
+</resources>
