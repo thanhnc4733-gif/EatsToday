@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,9 +34,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -83,32 +84,20 @@ fun ScreenColumn(
     }
 }
 
-/** Thanh trên cùng cố định, luôn nằm ngoài vùng cuộn để nút quay lại dễ bấm. */
 @Composable
-fun BackTopBar(onBack: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .padding(horizontal = 4.dp),
-    ) {
+fun BackRow(onBack: () -> Unit, label: String = "Quay lại", trailing: @Composable (RowScope.() -> Unit)? = null) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = label)
         }
+        Spacer1()
+        if (trailing != null) trailing()
     }
 }
 
-/** Các nút thao tác căn phải ở đầu nội dung màn hình. */
 @Composable
-fun TopActions(content: @Composable RowScope.() -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically,
-        content = content,
-    )
+private fun RowScope.Spacer1() {
+    Box(Modifier.weight(1f))
 }
 
 @Composable
@@ -132,14 +121,24 @@ fun EatsCard(
     }
 }
 
-/** Khung ảnh: hiển thị ảnh thật khi có đường dẫn, nếu không thì giữ chỗ giống thiết kế. */
+/**
+ * Khung ảnh. Thứ tự ưu tiên: ảnh người dùng chụp ([photoPath]), ảnh trong res/drawable
+ * theo tên ([imageName], ví dụ "bun_bo_hue"), cuối cùng là khung giữ chỗ giống thiết kế.
+ * Tên không tồn tại trong drawable thì rơi về khung giữ chỗ, không làm ứng dụng văng.
+ */
 @Composable
 fun FoodImage(
     label: String,
     modifier: Modifier = Modifier,
     photoPath: String? = null,
     radius: Dp = 14.dp,
+    imageName: String? = null,
 ) {
+    val context = LocalContext.current
+    val drawableId = remember(imageName) {
+        if (imageName.isNullOrBlank()) 0
+        else context.resources.getIdentifier(imageName, "drawable", context.packageName)
+    }
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(radius))
@@ -149,6 +148,13 @@ fun FoodImage(
         if (photoPath != null) {
             AsyncImage(
                 model = File(photoPath),
+                contentDescription = label,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else if (drawableId != 0) {
+            AsyncImage(
+                model = drawableId,
                 contentDescription = label,
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
@@ -171,7 +177,6 @@ fun UserAvatar(
     modifier: Modifier = Modifier,
     size: Dp = 44.dp,
     highlighted: Boolean = false,
-    photoPath: String? = null,
 ) {
     val outline = if (highlighted) {
         Modifier.border(3.dp, MaterialTheme.colorScheme.primary, CircleShape).padding(5.dp)
@@ -186,21 +191,12 @@ fun UserAvatar(
                 .background(MaterialTheme.colorScheme.secondaryContainer),
             contentAlignment = Alignment.Center,
         ) {
-            if (photoPath != null) {
-                AsyncImage(
-                    model = File(photoPath),
-                    contentDescription = "Ảnh đại diện",
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Text(
-                    text = text,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = (size.value * 0.32f).sp,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-            }
+            Text(
+                text = text,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = (size.value * 0.32f).sp,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
         }
     }
 }

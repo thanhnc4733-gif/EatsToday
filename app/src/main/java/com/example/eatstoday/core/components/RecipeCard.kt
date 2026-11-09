@@ -35,8 +35,9 @@ fun RecipeCard(
 ) {
     EatsCard(onClick = onClick, modifier = modifier, contentPadding = 8.dp) {
         FoodImage(
-            label = if (recipe.isPremium) "Ảnh món · Premium" else "Ảnh món",
+            label = if (recipe.image != null) recipe.name else if (recipe.isPremium) "Ảnh món · Premium" else "Ảnh món",
             modifier = Modifier.fillMaxWidth().height(imageHeight),
+            imageName = recipe.image,
         )
         Text(
             recipe.name,

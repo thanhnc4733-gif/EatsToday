@@ -28,6 +28,7 @@ object RecipeSampleData {
         Recipe(
             id = 1,
             name = "Bún bò Huế",
+            image = "bun_bo_hue",
             description = "Nước dùng cay nhẹ, thơm sả và mắm ruốc.",
             cookingTime = 45,
             servings = 4,
@@ -54,6 +55,7 @@ object RecipeSampleData {
         Recipe(
             id = 2,
             name = "Bò sốt vang",
+            image = "bo_sot_vang",
             description = "Thịt bò mềm trong sốt vang đậm đà, hợp ăn cùng bánh mì.",
             cookingTime = 60,
             servings = 4,
@@ -106,6 +108,7 @@ object RecipeSampleData {
         Recipe(
             id = 4,
             name = "Gà kho gừng",
+            image = "ga_kho_gung",
             description = "Gà săn, sốt sánh và ấm vị gừng.",
             cookingTime = 35,
             servings = 3,
@@ -129,6 +132,7 @@ object RecipeSampleData {
         Recipe(
             id = 5,
             name = "Trứng chiên cà chua",
+            image = "trung_chien_ca_chua",
             description = "Món nhanh gọn cho ngày bận rộn.",
             cookingTime = 15,
             servings = 2,

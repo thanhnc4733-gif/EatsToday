@@ -44,7 +44,7 @@ fun RecipeDetailScreen(
             }
         },
     ) {
-        TopActions {
+        BackRow(onBack) {
             IconButton(onClick = { showCollections = true }) {
                 Icon(Icons.Outlined.BookmarkBorder, contentDescription = "Thêm vào bộ sưu tập")
             }
@@ -56,7 +56,12 @@ fun RecipeDetailScreen(
                 )
             }
         }
-        FoodImage("Ảnh món lớn", Modifier.fillMaxWidth().height(220.dp), radius = 24.dp)
+        FoodImage(
+            label = if (recipe.image != null) recipe.name else "Ảnh món lớn",
+            modifier = Modifier.fillMaxWidth().height(220.dp),
+            radius = 24.dp,
+            imageName = recipe.image,
+        )
         Text(recipe.name, style = MaterialTheme.typography.headlineMedium)
         Text(
             "${recipe.cookingTime} phút · ${recipe.difficulty.label} · ${recipe.servings} người · ${recipe.rating} sao",
