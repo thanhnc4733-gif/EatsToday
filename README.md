@@ -41,9 +41,9 @@ Room lưu yêu thích, lịch sử nấu, bộ sưu tập, tủ lạnh, đi ch�
 ## Cần bổ sung
 
 - **Font:** thiết kế dùng Be Vietnam Pro nhưng hiện đang dùng font hệ thống. Tải font từ Google Fonts, chép vào `res/font/` các file `be_vietnam_pro_regular.ttf`, `_semibold.ttf`, `_bold.ttf`, rồi đổi `AppFontFamily` trong `ui/theme/Type.kt` thành `FontFamily(Font(R.font.be_vietnam_pro_regular, FontWeight.Normal), Font(R.font.be_vietnam_pro_semibold, FontWeight.SemiBold), Font(R.font.be_vietnam_pro_bold, FontWeight.Bold))`.
-- **Ảnh món ăn:** thiết kế chỉ có khung giữ chỗ nên ứng dụng cũng vậy, trừ ảnh người dùng chụp hoặc chọn.
+- **Ảnh món ăn:** tất cả là ảnh chụp thật trong `res/drawable-nodpi`. 12 ảnh lấy từ Wikimedia Commons (xem mục Nguồn ảnh); đã được cắt về khung 640×400. Muốn thay ảnh, chép đè đúng tên file.
 - **Giá Premium:** đang để `[Giá/năm]` và `[Giá/tháng]` như thiết kế.
-- **Công thức mẫu:** 10 món do lập trình viên soạn làm dữ liệu thử, nên kiểm tra lại định lượng trước khi phát hành.
+- **Công thức mẫu:** 16 món do lập trình viên soạn làm dữ liệu thử, nên kiểm tra lại định lượng trước khi phát hành.
 
 ## Giới hạn của bản không có backend
 
@@ -66,3 +66,24 @@ Room lưu yêu thích, lịch sử nấu, bộ sưu tập, tủ lạnh, đi ch�
 - [ ] Bấm liên tục các nút Hoàn thành, Gửi, Thêm đi chợ: không tạo bản ghi trùng
 - [ ] Đổi cỡ chữ và giao diện tối trong Cài đặt; đăng xuất rồi đăng nhập lại
 - [ ] Kiểm tra trên màn hình nhỏ và bật bàn phím ở các màn hình có ô nhập
+
+## Nguồn ảnh
+
+Các ảnh dưới đây lấy từ Wikimedia Commons, đã được cắt khung. Ảnh CC BY-SA khi chỉnh sửa vẫn giữ nguyên giấy phép CC BY-SA.
+
+| File | Ảnh gốc | Tác giả | Giấy phép |
+| --- | --- | --- | --- |
+| canh_chua_ca.jpg | [Canhchua2.jpg](https://commons.wikimedia.org/wiki/File:Canhchua2.jpg) | Jason Hutchens | CC BY 2.0 |
+| canh_trung_ca.jpg | [Tomato and egg soup.jpg](https://commons.wikimedia.org/wiki/File:Tomato_and_egg_soup.jpg) | NNU-10-HanRongrong | CC BY 3.0 |
+| dau_hu_sot_ca_chua.jpg | [Tomato-sauced tofu.jpg](https://commons.wikimedia.org/wiki/File:Tomato-sauced_tofu.jpg) | Mickey Đại Phát | CC BY-SA 4.0 |
+| thit_kho_trung.jpg | [Vietnamese thit kho, braised pork belly and boiled eggs](https://commons.wikimedia.org/wiki/File:Vietnamese_thit_kho,_braised_pork_belly_and_boiled_eggs_-_47693228262.jpg) | HungryHuy | CC BY 2.0 |
+| goi_cuon.jpg | [Gỏi cuốn.jpg](https://commons.wikimedia.org/wiki/File:G%E1%BB%8Fi_cu%E1%BB%91n.jpg) | Tran Hai Duong | CC0 |
+| mi_y_sot_ca_chua.jpg | [Spaghetti with Tomato Sauce](https://commons.wikimedia.org/wiki/File:Liat_Portal_for_Foodie_Disorder_-_Spaghetti_with_Tomato_Sauce.jpg) | HaJunkiyada | CC BY-SA 4.0 |
+| pho_bo.jpg | [Pho Bo by Banh & Mee](https://commons.wikimedia.org/wiki/File:Pho_Bo_by_Banh_%26_Mee_in_Kirkgate_Market.jpg) | Andy Li | CC0 |
+| com_chien_trung.jpg | [Egg Fried Rice.jpg](https://commons.wikimedia.org/wiki/File:Egg_Fried_Rice.jpg) | Gaurav Dhwaj Khadka | CC BY-SA 4.0 |
+| banh_xeo.jpg | [Crispy Vietnamese Pancake (Banh Xeo)](https://commons.wikimedia.org/wiki/File:Crispy_Vietnamese_Pancake_(Banh_Xeo)_-_Xin_Chao,_Eastbourne_2026-08-14_(2).jpg) | Andy Li | CC0 |
+| ca_kho_to.jpg | [Cá kho tộ.JPG](https://commons.wikimedia.org/wiki/File:C%C3%A1_kho_t%E1%BB%99.JPG) | Binh Giang | Public domain |
+| rau_muong_xao_toi.jpg | [Rau muống xào tỏi.jpg](https://commons.wikimedia.org/wiki/File:Rau_mu%E1%BB%91ng_x%C3%A0o_t%E1%BB%8Fi.jpg) | Andy Wright | CC BY 2.0 |
+| che_chuoi.jpg | [Banana, tapioca, coconut creme Vietnamese pudding](https://commons.wikimedia.org/wiki/File:Banana,_tapioca,_coconut_creme_Vietnamese_pudding_(che_chuoi).jpg) | HungryHuy | CC BY 2.0 |
+
+4 ảnh còn lại (bún bò Huế, bò sốt vang, gà kho gừng, trứng chiên cà chua) do nhóm tự thêm; nhóm cần tự ghi nguồn nếu không phải ảnh tự chụp.

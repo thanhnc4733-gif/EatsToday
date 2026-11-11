@@ -270,6 +270,7 @@ private fun NavGraphBuilder.recipeGraph(nav: NavHostController) {
         val id = entry.recipeIdArg()
         CookingCompletedScreen(
             recipeName = RecipeSampleData.recipes.firstOrNull { it.id == id }?.name.orEmpty(),
+            imageName = RecipeSampleData.recipes.firstOrNull { it.id == id }?.image,
             onTakePhoto = { nav.navigate(AppRoute.camera(id)) },
             onHome = { nav.finishFlowTo(AppRoute.HOME) },
         )

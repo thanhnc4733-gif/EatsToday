@@ -44,7 +44,7 @@ fun RecipeDetailScreen(
             }
         },
     ) {
-        BackRow(onBack) {
+        TopActions {
             IconButton(onClick = { showCollections = true }) {
                 Icon(Icons.Outlined.BookmarkBorder, contentDescription = "Thêm vào bộ sưu tập")
             }

@@ -20,6 +20,9 @@ import com.example.eatstoday.core.utils.relativeTime
 import com.example.eatstoday.data.model.PostWithCount
 import com.example.eatstoday.feature.social.presentation.viewmodel.PostViewModel
 import kotlin.math.roundToInt
+import com.example.eatstoday.data.local.RecipeSampleData
+
+private fun recipeImage(recipeId: Int?): String? = RecipeSampleData.recipes.firstOrNull { it.id == recipeId }?.image
 
 @Composable
 fun OfflineContent(onRetry: () -> Unit, onSaved: () -> Unit) {
@@ -84,7 +87,7 @@ private fun PostCard(item: PostWithCount, myAvatarPath: String?, onOpen: () -> U
                     )
                 }
             }
-            FoodImage("Ảnh món của ${post.authorName}", Modifier.fillMaxWidth().height(210.dp), photoPath = post.photoPath)
+            FoodImage("Ảnh món của ${post.authorName}", Modifier.fillMaxWidth().height(210.dp), photoPath = post.photoPath, imageName = recipeImage(post.recipeId))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(post.recipeName, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
                 RecipeRating(post.rating.roundToInt())
@@ -142,7 +145,7 @@ fun ReviewScreen(
             EatsLoading(Modifier.height(200.dp))
             return@ScreenColumn
         }
-        FoodImage("Ảnh món của ${current.authorName}", Modifier.fillMaxWidth().height(230.dp), photoPath = current.photoPath, radius = 24.dp)
+        FoodImage("Ảnh món của ${current.authorName}", Modifier.fillMaxWidth().height(230.dp), photoPath = current.photoPath, radius = 24.dp, imageName = recipeImage(current.recipeId))
         Column {
             Text(current.recipeName, style = MaterialTheme.typography.titleMedium)
             Text(

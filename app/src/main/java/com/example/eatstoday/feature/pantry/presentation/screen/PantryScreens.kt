@@ -54,7 +54,7 @@ fun FridgeScreen(
         state.matches.forEach { match ->
             EatsCard(onClick = { onRecipeClick(match.recipe.id) }, modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FoodImage("Ảnh", Modifier.size(64.dp))
+                    FoodImage(match.recipe.name, Modifier.size(64.dp), imageName = match.recipe.image)
                     Column(Modifier.weight(1f)) {
                         Text(match.recipe.name, style = MaterialTheme.typography.titleSmall)
                         Text(

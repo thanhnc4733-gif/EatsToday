@@ -83,7 +83,7 @@ fun CookingScreen(
             color = MaterialTheme.colorScheme.primary,
             trackColor = MaterialTheme.colorScheme.outlineVariant,
         )
-        FoodImage("Ảnh minh họa bước", Modifier.fillMaxWidth().height(200.dp))
+        FoodImage(recipe.name, Modifier.fillMaxWidth().height(200.dp), imageName = recipe.image)
         Text(step.title, style = MaterialTheme.typography.displaySmall)
         Text(step.description, style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Normal))
         state.remainingSeconds?.let { remaining ->
@@ -125,10 +125,10 @@ fun CookingScreen(
 }
 
 @Composable
-fun CookingCompletedScreen(recipeName: String, onTakePhoto: () -> Unit, onHome: () -> Unit) {
+fun CookingCompletedScreen(recipeName: String, imageName: String?, onTakePhoto: () -> Unit, onHome: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.weight(1f))
-        FoodImage("Xong rồi!", Modifier.size(140.dp), radius = 70.dp)
+        FoodImage("Xong rồi!", Modifier.size(140.dp), radius = 70.dp, imageName = imageName)
         Spacer(Modifier.height(14.dp))
         Text("Nấu xong rồi!", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
