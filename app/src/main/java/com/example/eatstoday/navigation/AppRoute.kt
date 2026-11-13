@@ -10,8 +10,6 @@ object AppRoute {
     const val PERMISSIONS = "permissions"
     const val PREFERENCES = "preferences"
     const val FORGOT = "forgot"
-    const val VERIFY = "verify/{email}"
-    const val NEW_PASSWORD = "new_password/{email}"
     const val PASSWORD_DONE = "password_done"
 
     const val HOME = "home"
@@ -44,8 +42,6 @@ object AppRoute {
     const val PREMIUM = "premium"
     const val PREMIUM_SUCCESS = "premium_success"
 
-    fun verify(email: String) = "verify/${Uri.encode(email)}"
-    fun newPassword(email: String) = "new_password/${Uri.encode(email)}"
     fun recipeDetail(id: Int) = "recipe_detail/$id"
     fun cooking(id: Int) = "cooking/$id"
     fun cookingDone(id: Int) = "cooking_done/$id"

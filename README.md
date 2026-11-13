@@ -6,9 +6,16 @@
 
 1. Mở thư mục này bằng Android Studio (Ladybug trở lên) và chờ Gradle Sync. Cần JDK 17 trở lên.
 2. Chọn thiết bị API 24 trở lên rồi bấm Run.
-3. Bấm **Đăng ký tài khoản**, đăng nhập bằng `demo@eatstoday.vn` / `Eats1234`, hoặc bấm **Bắt đầu** để dùng ngay. Mã đặt lại mật khẩu thử nghiệm là `1234`.
+3. Bấm **Đăng ký tài khoản** để tạo tài khoản Firebase, hoặc **Bắt đầu** để dùng ngay không cần tài khoản.
 
 Chạy kiểm thử đơn vị: `./gradlew testDebugUnitTest`. Tạo APK thử: `./gradlew assembleDebug`.
+
+## Đăng nhập (Firebase Authentication)
+
+- Đăng ký, đăng nhập bằng email/mật khẩu và quên mật khẩu (gửi link qua email thật) chạy qua Firebase Authentication, project `eatstoday-bee61`.
+- Đăng nhập Google dùng Credential Manager. Cần bật nhà cung cấp Google trong Firebase **trước** khi tải `app/google-services.json`, và thêm SHA-1 của máy build vào Firebase.
+- Mỗi thành viên build trên máy riêng phải thêm SHA-1 debug của máy mình (`.\gradlew signingReport`) vào Firebase thì nút Google mới chạy.
+- Code gọi Firebase nằm gọn trong `data/remote/FirebaseAuthSource.kt`; `core/utils/GoogleSignIn.kt` lo phần chọn tài khoản Google.
 
 ## Công nghệ
 
@@ -48,8 +55,7 @@ Room lưu yêu thích, lịch sử nấu, bộ sưu tập, tủ lạnh, đi ch�
 ## Giới hạn của bản không có backend
 
 - Quyền vị trí, thông báo và micro mới chỉ được xin, chưa có chức năng nào dùng đến. Trước khi đưa lên Google Play cần làm các chức năng đó hoặc bỏ quyền trong `AndroidManifest.xml`.
-- Đăng ký chỉ lưu một tài khoản trên máy; đăng ký email mới sẽ thay tài khoản cũ.
-- Đăng nhập, đặt lại mật khẩu và Google/Apple là mô phỏng, không phải xác thực thật. Mã 4 số không được gửi qua email.
+- Đăng nhập Apple chưa hỗ trợ (cần tài khoản Apple Developer). Hồ sơ, cài đặt và dữ liệu nấu ăn vẫn chỉ lưu trên máy, chưa đồng bộ theo tài khoản.
 - Bài đăng, bình luận, kết bạn chỉ nằm trên máy, không đồng bộ với người khác. Nhắn tin, mã QR, tìm trong danh bạ chưa hoạt động.
 - Premium chỉ đổi trạng thái cục bộ, không có thanh toán.
 - Bộ đếm giờ vẫn đúng sau khi xoay màn hình hoặc quay lại ứng dụng, nhưng chỉ kêu khi ứng dụng đang mở; chưa có thông báo nền.

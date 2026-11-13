@@ -5,6 +5,7 @@ import androidx.room.withTransaction
 import com.example.eatstoday.data.local.AppDatabase
 import com.example.eatstoday.data.local.LocalDataStore
 import com.example.eatstoday.data.local.seedDatabase
+import com.example.eatstoday.data.remote.FirebaseAuthSource
 import com.example.eatstoday.data.repository.PantryRepository
 import com.example.eatstoday.data.repository.RecipeRepository
 import com.example.eatstoday.data.repository.SocialRepository
@@ -24,7 +25,7 @@ class AppContainer(context: Context) {
     val recipeRepository = RecipeRepository(database.recipeDao())
     val pantryRepository = PantryRepository(database.pantryDao(), database.shoppingDao())
     val socialRepository = SocialRepository(database.socialDao())
-    val userRepository = UserRepository(dataStore)
+    val userRepository = UserRepository(dataStore, FirebaseAuthSource())
 
     init {
         applicationScope.launch {

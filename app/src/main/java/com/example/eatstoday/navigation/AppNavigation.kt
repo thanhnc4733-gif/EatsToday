@@ -36,12 +36,10 @@ import com.example.eatstoday.feature.auth.presentation.viewmodel.AuthViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.eatstoday.core.utils.AppViewModelProvider
 import com.example.eatstoday.feature.auth.presentation.screen.ForgotPasswordScreen
-import com.example.eatstoday.feature.auth.presentation.screen.NewPasswordScreen
 import com.example.eatstoday.feature.auth.presentation.screen.PreferencesScreen
 import com.example.eatstoday.feature.auth.presentation.screen.RegisterScreen
 import com.example.eatstoday.feature.auth.presentation.screen.ResultScreen
 import com.example.eatstoday.feature.auth.presentation.screen.SignInScreen
-import com.example.eatstoday.feature.auth.presentation.screen.VerifyCodeScreen
 import com.example.eatstoday.feature.auth.presentation.screen.WelcomeScreen
 import com.example.eatstoday.feature.pantry.presentation.screen.FridgeScreen
 import com.example.eatstoday.feature.pantry.presentation.screen.IngredientFormScreen
@@ -208,29 +206,15 @@ private fun NavGraphBuilder.authGraph(nav: NavHostController) {
     composable(AppRoute.FORGOT) {
         ForgotPasswordScreen(
             onBack = { nav.popBackStack() },
-            onCodeSent = { email -> nav.navigate(AppRoute.verify(email)) },
-        )
-    }
-    composable(AppRoute.VERIFY, listOf(navArgument("email") { type = NavType.StringType })) { entry ->
-        val email = entry.arguments?.getString("email").orEmpty()
-        VerifyCodeScreen(
-            email = email,
-            onBack = { nav.popBackStack() },
-            onVerified = { nav.navigate(AppRoute.newPassword(email)) },
-        )
-    }
-    composable(AppRoute.NEW_PASSWORD, listOf(navArgument("email") { type = NavType.StringType })) { entry ->
-        NewPasswordScreen(
-            email = entry.arguments?.getString("email").orEmpty(),
-            onDone = {
-                nav.navigate(AppRoute.PASSWORD_DONE) { popUpTo(AppRoute.SIGN_IN) }
+            onEmailSent = {
+                nav.navigate(AppRoute.PASSWORD_DONE) { popUpTo(AppRoute.FORGOT) { inclusive = true } }
             },
         )
     }
     composable(AppRoute.PASSWORD_DONE) {
         ResultScreen(
-            title = "Đã đổi mật khẩu",
-            message = "Bạn có thể đăng nhập bằng mật khẩu mới ngay bây giờ.",
+            title = "Kiểm tra email của bạn",
+            message = "Nếu email đã đăng ký, bạn sẽ nhận được link đặt mật khẩu mới trong vài phút. Hãy xem cả thư mục Spam.",
             actionLabel = "Về đăng nhập",
             onAction = { nav.popBackStack(AppRoute.SIGN_IN, inclusive = false) },
         )

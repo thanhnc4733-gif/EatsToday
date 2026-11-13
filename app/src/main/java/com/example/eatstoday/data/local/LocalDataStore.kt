@@ -27,9 +27,6 @@ class LocalDataStore(context: Context) {
         val SEEDED = booleanPreferencesKey("seeded")
         val NAME = stringPreferencesKey("name")
         val EMAIL = stringPreferencesKey("email")
-        val PASSWORD_HASH = stringPreferencesKey("password_hash")
-        val REGISTERED_EMAIL = stringPreferencesKey("registered_email")
-        val REGISTERED_HASH = stringPreferencesKey("registered_hash")
         val AVATAR = stringPreferencesKey("avatar_path")
         val PERMISSIONS_SEEN = booleanPreferencesKey("permissions_seen")
         val PREMIUM = booleanPreferencesKey("premium")
@@ -70,15 +67,6 @@ class LocalDataStore(context: Context) {
         )
     }
 
-    suspend fun passwordHash(): String? = store.data.first()[Keys.PASSWORD_HASH]
-    suspend fun setPasswordHash(hash: String) = edit { it[Keys.PASSWORD_HASH] = hash }
-    suspend fun registeredEmail(): String? = store.data.first()[Keys.REGISTERED_EMAIL]
-    suspend fun registeredHash(): String? = store.data.first()[Keys.REGISTERED_HASH]
-    suspend fun setRegisteredAccount(email: String, hash: String) = edit {
-        it[Keys.REGISTERED_EMAIL] = email
-        it[Keys.REGISTERED_HASH] = hash
-    }
-    suspend fun setRegisteredHash(hash: String) = edit { it[Keys.REGISTERED_HASH] = hash }
 
     suspend fun setAvatar(path: String?) = edit {
         if (path == null) it.remove(Keys.AVATAR) else it[Keys.AVATAR] = path

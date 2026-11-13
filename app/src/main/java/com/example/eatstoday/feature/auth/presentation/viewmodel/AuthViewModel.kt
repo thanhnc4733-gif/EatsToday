@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.eatstoday.core.utils.isValidEmail
 import com.example.eatstoday.core.utils.isValidPassword
 import com.example.eatstoday.data.model.UserPreferences
+import com.example.eatstoday.data.remote.AuthException
 import com.example.eatstoday.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,45 +17,41 @@ data class AuthUiState(
     val emailError: String? = null,
     val passwordError: String? = null,
     val confirmError: String? = null,
-    val codeError: String? = null,
+    /** Lỗi không gắn với ô nhập nào (mất mạng, hủy đăng nhập Google...). */
+    val message: String? = null,
 )
 
 class AuthViewModel(private val repository: UserRepository) : ViewModel() {
     private val _state = MutableStateFlow(AuthUiState())
     val state: StateFlow<AuthUiState> = _state
 
-    fun signIn(email: String, password: String, onSuccess: () -> Unit) {
+    /** Chạy một thao tác với Firebase, chặn bấm liên tục và đưa lỗi về đúng ô nhập. */
+    private fun runAuth(action: suspend () -> Unit, onSuccess: () -> Unit) {
         if (_state.value.isBusy) return
+        _state.value = AuthUiState(isBusy = true)
+        viewModelScope.launch {
+            try {
+                action()
+                _state.value = AuthUiState()
+                onSuccess()
+            } catch (e: AuthException) {
+                _state.value = when (e.field) {
+                    AuthException.Field.EMAIL -> AuthUiState(emailError = e.message)
+                    AuthException.Field.PASSWORD -> AuthUiState(passwordError = e.message)
+                    AuthException.Field.GENERAL -> AuthUiState(message = e.message)
+                }
+            }
+        }
+    }
+
+    fun signIn(email: String, password: String, onSuccess: () -> Unit) {
         val emailError = if (isValidEmail(email)) null else "Email chưa đúng định dạng"
         val passwordError = if (password.isEmpty()) "Vui lòng nhập mật khẩu" else null
         if (emailError != null || passwordError != null) {
             _state.value = AuthUiState(emailError = emailError, passwordError = passwordError)
             return
         }
-        _state.value = AuthUiState(isBusy = true)
-        viewModelScope.launch {
-            if (repository.signIn(email, password)) {
-                _state.value = AuthUiState()
-                onSuccess()
-            } else {
-                _state.value = AuthUiState(passwordError = "Email hoặc mật khẩu không đúng")
-            }
-        }
-    }
-
-    fun requestReset(email: String, onSuccess: () -> Unit) {
-        if (!isValidEmail(email)) {
-            _state.value = AuthUiState(emailError = "Email chưa đúng định dạng")
-            return
-        }
-        viewModelScope.launch {
-            if (repository.accountExists(email)) {
-                _state.value = AuthUiState()
-                onSuccess()
-            } else {
-                _state.value = AuthUiState(emailError = "Không tìm thấy tài khoản với email này")
-            }
-        }
+        runAuth({ repository.signIn(email, password) }, onSuccess)
     }
 
     fun register(
@@ -65,7 +62,6 @@ class AuthViewModel(private val repository: UserRepository) : ViewModel() {
         avatarPath: String?,
         onSuccess: () -> Unit,
     ) {
-        if (_state.value.isBusy) return
         val errors = AuthUiState(
             nameError = if (name.isBlank()) "Vui lòng nhập tên" else null,
             emailError = if (isValidEmail(email)) null else "Email chưa đúng định dạng",
@@ -76,15 +72,27 @@ class AuthViewModel(private val repository: UserRepository) : ViewModel() {
             _state.value = errors
             return
         }
-        _state.value = AuthUiState(isBusy = true)
-        viewModelScope.launch {
-            if (repository.register(name, email, password, avatarPath)) {
-                _state.value = AuthUiState()
-                onSuccess()
-            } else {
-                _state.value = AuthUiState(emailError = "Email này đã có tài khoản")
-            }
+        runAuth({ repository.register(name, email, password, avatarPath) }, onSuccess)
+    }
+
+    fun signInWithGoogle(idToken: String, onSuccess: () -> Unit) {
+        runAuth({ repository.signInWithGoogle(idToken) }, onSuccess)
+    }
+
+    fun sendPasswordReset(email: String, onSuccess: () -> Unit) {
+        if (!isValidEmail(email)) {
+            _state.value = AuthUiState(emailError = "Email chưa đúng định dạng")
+            return
         }
+        runAuth({ repository.sendPasswordReset(email) }, onSuccess)
+    }
+
+    fun showMessage(message: String) {
+        _state.value = AuthUiState(message = message)
+    }
+
+    fun clearMessage() {
+        _state.value = _state.value.copy(message = null)
     }
 
     /** onResult(true) nghĩa là chưa từng hiện màn hình xin quyền. */
@@ -96,35 +104,6 @@ class AuthViewModel(private val repository: UserRepository) : ViewModel() {
         viewModelScope.launch {
             repository.markPermissionsSeen()
             onDone()
-        }
-    }
-
-    fun verifyCode(code: String, onSuccess: () -> Unit) {
-        if (repository.isValidResetCode(code)) {
-            _state.value = AuthUiState()
-            onSuccess()
-        } else {
-            _state.value = AuthUiState(codeError = "Mã xác nhận không đúng")
-        }
-    }
-
-    fun resetPassword(email: String, password: String, confirm: String, onSuccess: () -> Unit) {
-        if (!isValidPassword(password)) {
-            _state.value = AuthUiState(passwordError = "Mật khẩu cần ít nhất 8 ký tự, có cả chữ và số")
-            return
-        }
-        if (password != confirm) {
-            _state.value = AuthUiState(confirmError = "Hai mật khẩu chưa khớp")
-            return
-        }
-        viewModelScope.launch {
-            if (repository.isCurrentPassword(email, password)) {
-                _state.value = AuthUiState(passwordError = "Mật khẩu mới nên khác mật khẩu cũ")
-            } else {
-                repository.resetPassword(email, password)
-                _state.value = AuthUiState()
-                onSuccess()
-            }
         }
     }
 

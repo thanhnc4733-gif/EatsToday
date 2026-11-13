@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "4044291716",
+    "project_id": "eatstoday-bee61",
+    "storage_bucket": "eatstoday-bee61.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:4044291716:android:f602255fb66ccf70b04cd1",
+        "android_client_info": {
+          "package_name": "com.example.eatstoday"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "4044291716-6lv6hnkahrsmentltp3c75j84953mn7m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.eatstoday",
+            "certificate_hash": "bebcb04d713ab6589bf93d649be1bc06be7779b3"
+          }
+        },
+        {
+          "client_id": "4044291716-v4nt0ia4albbqfu98svp1dsree4ltsg8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4hSGWjHcIzqzyoV_syWsyu001-JEgJCs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "4044291716-v4nt0ia4albbqfu98svp1dsree4ltsg8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

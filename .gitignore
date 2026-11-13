@@ -8,3 +8,4 @@ local.properties
 *.jks
 .DS_Store
 .kotlin/
+hs_err_pid*.log
