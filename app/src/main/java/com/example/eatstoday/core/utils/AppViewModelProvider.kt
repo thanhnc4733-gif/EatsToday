@@ -27,7 +27,7 @@ private fun CreationExtras.container(): AppContainer =
 object AppViewModelProvider {
     val Factory: ViewModelProvider.Factory = viewModelFactory {
         initializer { AuthViewModel(container().userRepository) }
-        initializer { HomeViewModel(container().recipeRepository, container().userRepository, container().socialRepository) }
+        initializer { HomeViewModel(container().recipeRepository, container().userRepository, container().feedRepository) }
         initializer { SearchViewModel(container().recipeRepository) }
         initializer { FavoritesViewModel(container().recipeRepository) }
         initializer {
@@ -42,12 +42,13 @@ object AppViewModelProvider {
         initializer { PantryViewModel(container().pantryRepository, container().recipeRepository) }
         initializer { IngredientFormViewModel(createSavedStateHandle(), container().pantryRepository) }
         initializer { ShoppingViewModel(container().pantryRepository) }
-        initializer { PostViewModel(createSavedStateHandle(), container().socialRepository, container().userRepository, container().recipeRepository) }
-        initializer { FriendsViewModel(createSavedStateHandle(), container().socialRepository) }
+        initializer { PostViewModel(createSavedStateHandle(), container().feedRepository, container().userRepository, container().recipeRepository) }
+        initializer { FriendsViewModel(createSavedStateHandle(), container().friendRepository, container().userRepository) }
         initializer {
             ProfileViewModel(
                 container().userRepository,
-                container().socialRepository,
+                container().feedRepository,
+                container().friendRepository,
                 container().recipeRepository,
                 container().applicationScope,
             )

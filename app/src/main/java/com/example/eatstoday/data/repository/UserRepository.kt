@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 class UserRepository(
     private val store: LocalDataStore,
     private val authSource: FirebaseAuthSource,
+    private val friendRepository: FriendRepository,
 ) {
     val isLoggedIn: Flow<Boolean> = store.isLoggedIn
     val user: Flow<User> = store.user
@@ -40,6 +41,9 @@ class UserRepository(
     private suspend fun onSignedIn(account: AuthAccount) {
         store.updateProfile(account.name?.takeIf { it.isNotBlank() } ?: account.email?.substringBefore('@') ?: "Bạn", account.email.orEmpty())
         store.setLoggedIn(account.email)
+        // Tạo hồ sơ kết bạn trên Firestore. Lỗi mạng hay Firestore chưa bật không được chặn đăng nhập;
+        // màn hình Bạn bè sẽ thử lại khi mở.
+        runCatching { friendRepository.ensureProfile(account.name) }
     }
 
     suspend fun setAvatar(path: String?) = store.setAvatar(path)
@@ -57,7 +61,10 @@ class UserRepository(
         store.logout()
     }
 
-    suspend fun updateProfile(name: String, email: String) = store.updateProfile(name, email)
+    suspend fun updateProfile(name: String, email: String) {
+        store.updateProfile(name, email)
+        if (hasAccount) runCatching { friendRepository.updateName(name) }
+    }
     suspend fun setPremium(value: Boolean) = store.setPremium(value)
     suspend fun setTheme(value: AppThemeMode) = store.setTheme(value)
     suspend fun setTextSize(value: TextSizeOption) = store.setTextSize(value)

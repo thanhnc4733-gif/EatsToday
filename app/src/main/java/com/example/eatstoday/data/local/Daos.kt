@@ -148,4 +148,16 @@ interface SocialDao {
 
     @Query("UPDATE notifications SET isRead = 1 WHERE isRead = 0")
     suspend fun markAllRead()
+
+    @Query("DELETE FROM friends")
+    suspend fun deleteAllFriends()
+
+    @Query("DELETE FROM notifications")
+    suspend fun deleteAllNotifications()
+
+    @Query("DELETE FROM comments WHERE postId IN (SELECT id FROM posts WHERE isMine = 0)")
+    suspend fun deleteCommentsOnOthersPosts()
+
+    @Query("DELETE FROM posts WHERE isMine = 0")
+    suspend fun deleteOthersPosts()
 }

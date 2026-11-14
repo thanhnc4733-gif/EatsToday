@@ -106,7 +106,6 @@ private val RoutesWithoutBack = setOf(
 )
 
 private fun intArg(name: String) = navArgument(name) { type = NavType.IntType }
-private fun longArg(name: String) = navArgument(name) { type = NavType.LongType }
 private fun NavBackStackEntry.recipeIdArg(): Int = arguments?.getInt("recipeId") ?: 0
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -303,9 +302,10 @@ private fun NavGraphBuilder.socialGraph(nav: NavHostController) {
             onFriends = { nav.navigate(AppRoute.FRIENDS) },
             onCamera = { nav.navigate(AppRoute.camera()) },
             onSaved = { nav.navigate(AppRoute.SAVED) },
+            onSignIn = { nav.navigate(AppRoute.SIGN_IN) },
         )
     }
-    composable(AppRoute.REVIEW, listOf(longArg("postId"))) {
+    composable(AppRoute.REVIEW, listOf(navArgument("postId") { type = NavType.StringType })) {
         ReviewScreen(onBack = { nav.popBackStack() })
     }
     composable(AppRoute.CAMERA, listOf(intArg("recipeId"))) { entry ->
@@ -338,16 +338,16 @@ private fun NavGraphBuilder.socialGraph(nav: NavHostController) {
             onFriendClick = { id -> nav.navigate(AppRoute.friendProfile(id)) },
             onAdd = { nav.navigate(AppRoute.ADD_FRIEND) },
             onRequests = { nav.navigate(AppRoute.REQUESTS) },
+            onSignIn = { nav.navigate(AppRoute.SIGN_IN) },
         )
     }
-    composable(AppRoute.ADD_FRIEND) { AddFriendScreen(onBack = { nav.popBackStack() }) }
+    composable(AppRoute.ADD_FRIEND) {
+        AddFriendScreen(onSignIn = { nav.navigate(AppRoute.SIGN_IN) })
+    }
     composable(AppRoute.REQUESTS) {
-        RequestsScreen(
-            onBack = { nav.popBackStack() },
-            onFriendClick = { id -> nav.navigate(AppRoute.friendProfile(id)) },
-        )
+        RequestsScreen(onSignIn = { nav.navigate(AppRoute.SIGN_IN) })
     }
-    composable(AppRoute.FRIEND_PROFILE, listOf(longArg("friendId"))) {
+    composable(AppRoute.FRIEND_PROFILE, listOf(navArgument("friendId") { type = NavType.StringType })) {
         FriendProfileScreen(
             onBack = { nav.popBackStack() },
             onSendDish = { nav.navigate(AppRoute.camera()) },
@@ -381,7 +381,12 @@ private fun NavGraphBuilder.profileGraph(nav: NavHostController) {
             onLoggedOut = { nav.resetTo(AppRoute.WELCOME) },
         )
     }
-    composable(AppRoute.NOTIFICATIONS) { NotificationsScreen(onBack = { nav.popBackStack() }) }
+    composable(AppRoute.NOTIFICATIONS) {
+        NotificationsScreen(
+            onOpenPost = { id -> nav.navigate(AppRoute.review(id)) },
+            onSignIn = { nav.navigate(AppRoute.SIGN_IN) },
+        )
+    }
     composable(AppRoute.PREMIUM) {
         PaywallScreen(
             onClose = { nav.popBackStack() },

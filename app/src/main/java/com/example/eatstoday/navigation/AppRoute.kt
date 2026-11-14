@@ -46,9 +46,9 @@ object AppRoute {
     fun cooking(id: Int) = "cooking/$id"
     fun cookingDone(id: Int) = "cooking_done/$id"
     fun ingredientForm(itemId: Long = -1L) = "ingredient_form?itemId=$itemId"
-    fun review(postId: Long) = "review/$postId"
+    fun review(postId: String) = "review/${Uri.encode(postId)}"
     /** recipeId = 0 nghĩa là món không gắn với công thức nào. */
     fun camera(recipeId: Int = 0) = "camera/$recipeId"
     fun share(recipeId: Int, path: String) = "share/$recipeId?path=${Uri.encode(path)}"
-    fun friendProfile(id: Long) = "friend_profile/$id"
+    fun friendProfile(uid: String) = "friend_profile/${Uri.encode(uid)}"
 }

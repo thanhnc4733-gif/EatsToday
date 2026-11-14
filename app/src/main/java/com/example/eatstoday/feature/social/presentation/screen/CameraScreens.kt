@@ -162,15 +162,16 @@ fun ShareScreen(
     onPublished: () -> Unit,
     viewModel: PostViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
-    val friends by viewModel.friends.collectAsStateWithLifecycle()
     var message by rememberSaveable { mutableStateOf("") }
-    var selected by rememberSaveable { mutableStateOf(listOf<Long>()) }
     var allowRating by rememberSaveable { mutableStateOf(true) }
+    val publishing by viewModel.publishing.collectAsStateWithLifecycle()
+    PostMessages(viewModel)
     ScreenColumn(
         bottomBar = {
             PrimaryButton(
-                if (selected.isEmpty()) "Đăng lên bảng tin" else "Gửi cho ${selected.size} người",
+                if (publishing) "Đang đăng..." else "Đăng lên bảng tin",
                 { viewModel.publish(photoPath, message, allowRating, onPublished) },
+                enabled = !publishing,
             )
         },
     ) {
@@ -179,23 +180,9 @@ fun ShareScreen(
             Spacer(Modifier.weight(1f))
             Text("Bước cuối", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text("Gửi cho bạn bè", style = MaterialTheme.typography.headlineMedium)
+        Text("Đăng món vừa nấu", style = MaterialTheme.typography.headlineMedium)
         FoodImage(viewModel.shareRecipeName, Modifier.fillMaxWidth().height(240.dp), photoPath = photoPath, radius = 24.dp)
         CustomTextField(message, { message = it }, "Thêm lời nhắn... ví dụ: \"Nước dùng ngọt lắm!\"", singleLine = false)
-        Text("Gửi tới", style = MaterialTheme.typography.titleMedium)
-        ChipRow {
-            friends.forEach { friend ->
-                UserAvatar(
-                    friend.avatarText,
-                    highlighted = friend.id in selected,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .clickable(role = Role.Checkbox, onClickLabel = "Chọn ${friend.name}") {
-                            selected = if (friend.id in selected) selected - friend.id else selected + friend.id
-                        },
-                )
-            }
-        }
         EatsCard(Modifier.fillMaxWidth(), contentPadding = 6.dp) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 8.dp)) {
                 Text("Cho bạn bè chấm sao và bình luận", modifier = Modifier.weight(1f))

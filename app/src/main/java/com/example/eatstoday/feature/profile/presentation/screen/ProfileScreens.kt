@@ -239,27 +239,39 @@ private fun OptionDialog(title: String, options: List<String>, onSelect: (Int) -
 
 @Composable
 fun NotificationsScreen(
-    onBack: () -> Unit,
+    onOpenPost: (String) -> Unit,
+    onSignIn: () -> Unit,
     viewModel: ProfileViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val notifications by viewModel.notifications.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
     DisposableEffect(Unit) {
         onDispose { viewModel.markNotificationsRead() }
     }
     ScreenColumn {
         Text("Thông báo", style = MaterialTheme.typography.headlineMedium)
+        if (!signedIn) {
+            EmptyState(
+                "Cần tài khoản",
+                "Đăng nhập để nhận thông báo",
+                "Khi bạn bè đăng món, bình luận hay chấm sao món của bạn, thông báo sẽ hiện ở đây.",
+                actionLabel = "Đăng nhập",
+                onAction = onSignIn,
+            )
+            return@ScreenColumn
+        }
         if (!settings.notificationsEnabled) {
             EatsCard(Modifier.fillMaxWidth()) {
-                Text("Thông báo đang tắt trong Cài đặt.", style = MaterialTheme.typography.bodySmall)
+                Text("Thông báo trên điện thoại đang tắt trong Cài đặt. Danh sách bên dưới vẫn cập nhật.", style = MaterialTheme.typography.bodySmall)
             }
         }
         notifications.forEach { item ->
-            EatsCard(Modifier.fillMaxWidth()) {
+            EatsCard(onClick = { onOpenPost(item.postId) }, modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    UserAvatar(item.actor, highlighted = !item.isRead)
+                    UserAvatar(item.avatarText, highlighted = !item.read)
                     Column(Modifier.weight(1f)) {
-                        Text("${item.actor} ${item.message}", style = MaterialTheme.typography.bodyMedium)
+                        Text("${item.actorName} ${item.message}", style = MaterialTheme.typography.bodyMedium)
                         Text(
                             relativeTime(item.createdAt),
                             style = MaterialTheme.typography.bodySmall,
@@ -269,8 +281,12 @@ fun NotificationsScreen(
                 }
             }
         }
-        EatsCard(Modifier.fillMaxWidth()) {
-            Text("Hết thông báo mới", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (notifications.isEmpty()) {
+            EmptyState("Chưa có gì", "Chưa có thông báo", "Khi bạn bè đăng món, bình luận hay chấm sao món của bạn, thông báo sẽ hiện ở đây.")
+        } else {
+            EatsCard(Modifier.fillMaxWidth()) {
+                Text("Hết thông báo mới", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }

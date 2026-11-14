@@ -17,12 +17,25 @@ import com.example.eatstoday.core.components.*
 import com.example.eatstoday.core.utils.AppViewModelProvider
 import com.example.eatstoday.core.utils.isOnline
 import com.example.eatstoday.core.utils.relativeTime
-import com.example.eatstoday.data.model.PostWithCount
+import com.example.eatstoday.data.local.RecipeSampleData
+import com.example.eatstoday.data.model.FeedPost
 import com.example.eatstoday.feature.social.presentation.viewmodel.PostViewModel
 import kotlin.math.roundToInt
-import com.example.eatstoday.data.local.RecipeSampleData
 
 private fun recipeImage(recipeId: Int?): String? = RecipeSampleData.recipes.firstOrNull { it.id == recipeId }?.image
+
+/** Hiện lỗi của ViewModel bằng snackbar rồi xóa để không hiện lại. */
+@Composable
+internal fun PostMessages(viewModel: PostViewModel) {
+    val message by viewModel.message.collectAsStateWithLifecycle()
+    val snackbar = LocalSnackbar.current
+    LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(it)
+            viewModel.clearMessage()
+        }
+    }
+}
 
 @Composable
 fun OfflineContent(onRetry: () -> Unit, onSaved: () -> Unit) {
@@ -42,10 +55,11 @@ fun OfflineContent(onRetry: () -> Unit, onSaved: () -> Unit) {
 
 @Composable
 fun FeedScreen(
-    onPostClick: (Long) -> Unit,
+    onPostClick: (String) -> Unit,
     onFriends: () -> Unit,
     onCamera: () -> Unit,
     onSaved: () -> Unit,
+    onSignIn: () -> Unit,
     viewModel: PostViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val context = LocalContext.current
@@ -54,32 +68,77 @@ fun FeedScreen(
         OfflineContent(onRetry = { online = isOnline(context) }, onSaved = onSaved)
         return
     }
-    val posts by viewModel.posts.collectAsStateWithLifecycle()
+    val state by viewModel.feed.collectAsStateWithLifecycle()
     val user by viewModel.user.collectAsStateWithLifecycle()
+    PostMessages(viewModel)
     ScreenColumn {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Bạn bè đang nấu", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
             IconButton(onClick = onCamera) { Icon(Icons.Outlined.CameraAlt, contentDescription = "Chụp món") }
             IconButton(onClick = onFriends) { Icon(Icons.Outlined.People, contentDescription = "Bạn bè") }
         }
-        if (posts.isEmpty()) {
-            EmptyState("Chưa có bài", "Chưa có bài đăng", "Nấu một món rồi chụp ảnh để chia sẻ nhé.")
-        }
-        posts.forEach { item ->
-            PostCard(item, user.avatarPath, onOpen = { onPostClick(item.post.id) }, onLike = { viewModel.toggleLike(item.post.id) })
+        when {
+            !state.signedIn -> EmptyState(
+                "Cần tài khoản",
+                "Đăng nhập để xem bảng tin",
+                "Bảng tin hiện món bạn bè vừa nấu. Bạn đang dùng ứng dụng không có tài khoản.",
+                actionLabel = "Đăng nhập",
+                onAction = onSignIn,
+            )
+            state.loading -> EatsLoading(Modifier.height(240.dp))
+            state.error != null -> EmptyState(
+                "Lỗi",
+                "Chưa tải được bảng tin",
+                state.error.orEmpty(),
+                actionLabel = "Thử lại",
+                onAction = viewModel::retry,
+            )
+            state.posts.isEmpty() -> EmptyState(
+                "Chưa có bài",
+                "Chưa có bài đăng",
+                "Nấu một món rồi chụp ảnh để chia sẻ. Bài của bạn bè sẽ hiện ở đây ngay khi họ đăng.",
+                actionLabel = "Bạn bè",
+                onAction = onFriends,
+            )
+            else -> state.posts.forEach { item ->
+                val photo by rememberPostPhoto(item, viewModel)
+                PostCard(
+                    item,
+                    myUid = state.myUid,
+                    myAvatarPath = user.avatarPath,
+                    photoPath = photo,
+                    onOpen = { onPostClick(item.id) },
+                    onLike = { viewModel.toggleLike(item) },
+                )
+            }
         }
     }
 }
 
+/** Ảnh của bài: lấy trên máy nếu có, không thì tải về ở nền. */
 @Composable
-private fun PostCard(item: PostWithCount, myAvatarPath: String?, onOpen: () -> Unit, onLike: () -> Unit) {
-    val post = item.post
+private fun rememberPostPhoto(post: FeedPost, viewModel: PostViewModel): State<String?> =
+    produceState(viewModel.photoOf(post.id), post.id, post.hasPhoto) {
+        if (value == null && post.hasPhoto) value = viewModel.loadPhoto(post)
+    }
+
+@Composable
+private fun PostCard(
+    post: FeedPost,
+    myUid: String?,
+    myAvatarPath: String?,
+    photoPath: String?,
+    onOpen: () -> Unit,
+    onLike: () -> Unit,
+) {
+    val mine = post.isMine(myUid)
+    val liked = post.isLikedBy(myUid)
     EatsCard(onClick = onOpen, modifier = Modifier.fillMaxWidth(), contentPadding = 12.dp) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                UserAvatar(post.avatarText, photoPath = myAvatarPath.takeIf { post.isMine })
+                UserAvatar(post.avatarText, photoPath = myAvatarPath.takeIf { mine })
                 Column(Modifier.weight(1f)) {
-                    Text(post.authorName, style = MaterialTheme.typography.titleSmall)
+                    Text(if (mine) "${post.authorName} (bạn)" else post.authorName, style = MaterialTheme.typography.titleSmall)
                     Text(
                         "vừa nấu · ${relativeTime(post.createdAt)}",
                         style = MaterialTheme.typography.bodySmall,
@@ -87,7 +146,7 @@ private fun PostCard(item: PostWithCount, myAvatarPath: String?, onOpen: () -> U
                     )
                 }
             }
-            FoodImage("Ảnh món của ${post.authorName}", Modifier.fillMaxWidth().height(210.dp), photoPath = post.photoPath, imageName = recipeImage(post.recipeId))
+            FoodImage("Ảnh món của ${post.authorName}", Modifier.fillMaxWidth().height(210.dp), photoPath = photoPath, imageName = recipeImage(post.recipeId))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(post.recipeName, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
                 RecipeRating(post.rating.roundToInt())
@@ -96,18 +155,18 @@ private fun PostCard(item: PostWithCount, myAvatarPath: String?, onOpen: () -> U
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onLike) {
                     Icon(
-                        imageVector = if (post.likedByMe) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = if (post.likedByMe) "Bỏ thích" else "Thích",
+                        imageVector = if (liked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = if (liked) "Bỏ thích" else "Thích",
                         tint = MaterialTheme.colorScheme.primary,
                     )
                 }
                 Text(
-                    "${post.likes} lượt thích · ${item.commentCount} bình luận",
+                    "${post.likes} lượt thích · ${post.commentCount} bình luận",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
-                if (post.allowRating && !post.isMine) {
+                if (post.allowRating && !mine) {
                     Text("Chấm sao", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                 }
             }
@@ -120,32 +179,51 @@ fun ReviewScreen(
     onBack: () -> Unit,
     viewModel: PostViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
-    val post by viewModel.post.collectAsStateWithLifecycle()
+    val state by viewModel.post.collectAsStateWithLifecycle()
     val comments by viewModel.comments.collectAsStateWithLifecycle()
     val user by viewModel.user.collectAsStateWithLifecycle()
     var draft by rememberSaveable { mutableStateOf("") }
-    val current = post
+    var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    val current = state.post
+    val myUid = viewModel.myUid
+    val mine = current?.isMine(myUid) == true
+    val canInteract = current != null && (current.allowRating || mine)
+    PostMessages(viewModel)
     ScreenColumn(
         bottomBar = {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                CustomTextField(draft, { draft = it }, "Viết bình luận...", modifier = Modifier.weight(1f))
-                PrimaryButton(
-                    "Gửi",
-                    {
-                        viewModel.sendComment(draft)
-                        draft = ""
-                    },
-                    modifier = Modifier.width(90.dp),
-                    enabled = draft.isNotBlank(),
-                )
+            if (canInteract) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    CustomTextField(draft, { draft = it }, "Viết bình luận...", modifier = Modifier.weight(1f))
+                    PrimaryButton(
+                        "Gửi",
+                        {
+                            viewModel.sendComment(draft)
+                            draft = ""
+                        },
+                        modifier = Modifier.width(90.dp),
+                        enabled = draft.isNotBlank(),
+                    )
+                }
             }
         },
     ) {
         if (current == null) {
-            EatsLoading(Modifier.height(200.dp))
+            when {
+                state.loading -> EatsLoading(Modifier.height(200.dp))
+                state.error != null -> EmptyState("Lỗi", "Không mở được bài", state.error.orEmpty(), actionLabel = "Thử lại", onAction = viewModel::retry)
+                else -> EmptyState("Không còn", "Bài đăng không còn", "Bài này đã bị xóa.", actionLabel = "Quay lại", onAction = onBack)
+            }
             return@ScreenColumn
         }
-        FoodImage("Ảnh món của ${current.authorName}", Modifier.fillMaxWidth().height(230.dp), photoPath = current.photoPath, radius = 24.dp, imageName = recipeImage(current.recipeId))
+        if (mine) TopActions { EatsChip("Xóa bài", false, { confirmDelete = true }) }
+        val photo by rememberPostPhoto(current, viewModel)
+        FoodImage(
+            "Ảnh món của ${current.authorName}",
+            Modifier.fillMaxWidth().height(230.dp),
+            photoPath = photo,
+            radius = 24.dp,
+            imageName = recipeImage(current.recipeId),
+        )
         Column {
             Text(current.recipeName, style = MaterialTheme.typography.titleMedium)
             Text(
@@ -155,21 +233,26 @@ fun ReviewScreen(
             )
         }
         if (current.message.isNotEmpty()) Text(current.message, style = MaterialTheme.typography.bodyMedium)
-        if (current.allowRating && !current.isMine) {
+        if (current.allowRating && !mine) {
+            val myRating = current.ratingOf(myUid)
             Text(
-                if (current.myRating > 0) "Bạn đã chấm ${current.myRating} sao, chạm để đổi" else "Chạm để chấm sao",
+                if (myRating > 0) "Bạn đã chấm $myRating sao, chạm để đổi" else "Chạm để chấm sao",
                 style = MaterialTheme.typography.bodySmall,
             )
-            RecipeRating(current.myRating, onRate = viewModel::rate)
+            RecipeRating(myRating, onRate = viewModel::rate)
         }
         Text(
-            "Điểm trung bình: %.1f (%d lượt)".format(current.rating, current.ratingCount),
+            "Điểm trung bình: %.1f (%d lượt) · %d lượt thích".format(current.rating, current.ratingCount, current.likes),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        ChipRow {
-            listOf("Ngon quá", "Thèm quá", "Muốn thử").forEach { text ->
-                EatsChip(text, false, { viewModel.sendComment(text) })
+        if (!canInteract) {
+            Text("Người đăng đã tắt chấm sao và bình luận.", style = MaterialTheme.typography.bodySmall)
+        } else if (!mine) {
+            ChipRow {
+                listOf("Ngon quá", "Thèm quá", "Muốn thử").forEach { text ->
+                    EatsChip(text, false, { viewModel.sendComment(text) })
+                }
             }
         }
         EatsCard(Modifier.fillMaxWidth()) {
@@ -179,17 +262,36 @@ fun ReviewScreen(
                 }
                 comments.forEach { comment ->
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        UserAvatar(comment.avatarText, photoPath = user.avatarPath.takeIf { comment.authorName == user.name })
+                        UserAvatar(comment.avatarText, photoPath = user.avatarPath.takeIf { comment.authorUid == myUid })
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(comment.authorName, style = MaterialTheme.typography.labelMedium)
                                 comment.rating?.let { RecipeRating(it, starSize = 14.dp) }
                             }
                             Text(comment.text, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                relativeTime(comment.createdAt),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
             }
         }
+    }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Xóa bài đăng?") },
+            text = { Text("Bạn bè sẽ không còn thấy bài này nữa.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    viewModel.deletePost(onBack)
+                }) { Text("Xóa") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Hủy") } },
+        )
     }
 }

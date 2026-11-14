@@ -29,6 +29,7 @@ class LocalDataStore(context: Context) {
         val EMAIL = stringPreferencesKey("email")
         val AVATAR = stringPreferencesKey("avatar_path")
         val PERMISSIONS_SEEN = booleanPreferencesKey("permissions_seen")
+        val SAMPLE_SOCIAL_REMOVED = booleanPreferencesKey("sample_social_removed")
         val PREMIUM = booleanPreferencesKey("premium")
         val CUISINES = stringSetPreferencesKey("cuisines")
         val SKILL = stringPreferencesKey("skill")
@@ -74,6 +75,9 @@ class LocalDataStore(context: Context) {
 
     suspend fun permissionsSeen(): Boolean = store.data.first()[Keys.PERMISSIONS_SEEN] ?: false
     suspend fun markPermissionsSeen() = edit { it[Keys.PERMISSIONS_SEEN] = true }
+
+    suspend fun isSampleSocialRemoved(): Boolean = store.data.first()[Keys.SAMPLE_SOCIAL_REMOVED] ?: false
+    suspend fun markSampleSocialRemoved() = edit { it[Keys.SAMPLE_SOCIAL_REMOVED] = true }
 
     suspend fun isSeeded(): Boolean = store.data.first()[Keys.SEEDED] ?: false
     suspend fun markSeeded() = edit { it[Keys.SEEDED] = true }

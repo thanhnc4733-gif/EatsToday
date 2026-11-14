@@ -60,6 +60,9 @@ dependencies {
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.code.scanner)
+    implementation(libs.zxing.core)
     implementation(libs.coroutines.play.services)
     implementation(libs.credentials)
     implementation(libs.credentials.play.services)

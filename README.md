@@ -17,6 +17,27 @@ Chạy kiểm thử đơn vị: `./gradlew testDebugUnitTest`. Tạo APK thử: 
 - Mỗi thành viên build trên máy riêng phải thêm SHA-1 debug của máy mình (`.\gradlew signingReport`) vào Firebase thì nút Google mới chạy.
 - Code gọi Firebase nằm gọn trong `data/remote/FirebaseAuthSource.kt`; `core/utils/GoogleSignIn.kt` lo phần chọn tài khoản Google.
 
+## Kết bạn (Cloud Firestore)
+
+- Mỗi tài khoản có hồ sơ `users/{uid}` (tên, mã bạn bè 6 ký tự). Hồ sơ được tạo khi đăng nhập hoặc khi mở màn Bạn bè lần đầu.
+- Tìm bạn bằng mã bạn bè, email, hoặc quét mã QR (`eatstoday://friend/MÃ`) bằng trình quét của Google Play Services, không cần xin quyền camera.
+- Lời mời nằm ở `friendRequests/{người gửi}_{người nhận}`, cập nhật theo thời gian thực. Chấp nhận thì lời mời trở thành quan hệ bạn bè; xóa là hủy lời mời hoặc hủy kết bạn.
+- Tra cứu theo mã và email dùng `friendCodes/{MÃ}` và `emails/{email}`, chỉ đọc được từng bản ghi, không ai liệt kê được danh sách người dùng. Hồ sơ công khai không chứa email.
+- **Luật bảo mật** ở file `firestore.rules`. Mỗi khi sửa, dán lại toàn bộ file vào Firebase Console > Firestore Database > Rules > Publish.
+- Code: `data/remote/FriendRemoteSource.kt`, `data/repository/FriendRepository.kt`, `feature/social/presentation/viewmodel/FriendsViewModel.kt`, `core/utils/FriendQr.kt`.
+- Người dùng chưa đăng nhập ("Bắt đầu") không kết bạn được; app mời họ đăng nhập.
+- Chưa có: thông báo khi có lời mời kết bạn mới.
+
+## Bảng tin và thông báo (Cloud Firestore)
+
+- Bài đăng nằm ở `posts/{id}`. Lúc đăng, app ghi danh sách `visibleTo` gồm tác giả và bạn bè hiện có; bảng tin của mỗi người là các bài có uid của mình trong `visibleTo`, cập nhật theo thời gian thực.
+- Thích (`likedBy`), chấm sao (`ratings` theo uid, chấm lại thì thay điểm cũ) và số bình luận lưu ngay trong bài. Bình luận ở `posts/{id}/comments`.
+- Thông báo ở `users/{uid}/notifications`: khi bạn bè đăng món (báo cho mọi bạn bè), bình luận hoặc chấm sao món của mình (báo cho tác giả). Thông báo được ghi trong cùng một lô với thao tác, nên không có thông báo "lạc".
+- Khi app đang chạy, `core/utils/FeedNotifier.kt` hiện thông báo trên thanh trạng thái (kênh "Bạn bè"), tôn trọng công tắc Thông báo trong Cài đặt và quyền thông báo. Khi app đã tắt hẳn thì cần Firebase Cloud Messaging và Cloud Functions (gói Blaze), chưa làm.
+- Ảnh chụp món được thu nhỏ (cạnh dài 1080 px), nén JPEG dưới 700 KB rồi lưu ở `postPhotos/{id}` trên Firestore (không cần Firebase Storage, vốn đòi gói Blaze). Máy bạn bè tải ảnh một lần rồi lưu lại trong bộ nhớ app.
+- Mỗi khi danh sách bạn bè thay đổi, app cập nhật `visibleTo` của các bài mình đã đăng: bạn mới kết bạn thấy cả bài cũ, người đã hủy kết bạn không còn thấy.
+- Code: `data/remote/PostRemoteSource.kt`, `data/repository/FeedRepository.kt`, `data/model/FeedModels.kt`, `feature/social/presentation/viewmodel/SocialViewModels.kt`, `feature/social/presentation/screen/FeedScreens.kt`.
+
 ## Công nghệ
 
 Compose BOM 2024.12.01, Material 3, Navigation Compose 2.8.5, Lifecycle 2.8.7, Coroutines 1.9.0, Room 2.6.1 (KSP), DataStore 1.1.1, Coil 2.7.0. AGP 8.7.3, Kotlin 2.0.21, Gradle 8.9, minSdk 24, targetSdk 35.
@@ -35,7 +56,7 @@ Compose BOM 2024.12.01, Material 3, Navigation Compose 2.8.5, Lifecycle 2.8.7, C
 | `core/` | Thành phần giao diện dùng chung, tiện ích, quyền camera |
 | `ui/theme` | Màu, kiểu chữ, kích thước, theme |
 
-Room lưu yêu thích, lịch sử nấu, bộ sưu tập, tủ lạnh, đi chợ, bạn bè, bài đăng, bình luận, thông báo. DataStore lưu đăng nhập, hồ sơ, sở thích, cài đặt, trạng thái Premium.
+Room lưu yêu thích, lịch sử nấu, bộ sưu tập, tủ lạnh, đi chợ. Bạn bè, bài đăng, bình luận và thông báo nằm trên Cloud Firestore. DataStore lưu đăng nhập, hồ sơ, sở thích, cài đặt, trạng thái Premium.
 
 ## Thay đổi so với thiết kế
 
@@ -55,7 +76,7 @@ Room lưu yêu thích, lịch sử nấu, bộ sưu tập, tủ lạnh, đi ch�
 ## Giới hạn của bản không có backend
 
 - Quyền vị trí, thông báo và micro mới chỉ được xin, chưa có chức năng nào dùng đến. Trước khi đưa lên Google Play cần làm các chức năng đó hoặc bỏ quyền trong `AndroidManifest.xml`.
-- Đăng nhập Apple chưa hỗ trợ (cần tài khoản Apple Developer). Hồ sơ, cài đặt và dữ liệu nấu ăn vẫn chỉ lưu trên máy, chưa đồng bộ theo tài khoản.
+- Đăng nhập Apple chưa hỗ trợ (cần tài khoản Apple Developer). Hồ sơ, cài đặt, bài đăng và dữ liệu nấu ăn vẫn chỉ lưu trên máy; riêng bạn bè đã đồng bộ qua Firestore.
 - Bài đăng, bình luận, kết bạn chỉ nằm trên máy, không đồng bộ với người khác. Nhắn tin, mã QR, tìm trong danh bạ chưa hoạt động.
 - Premium chỉ đổi trạng thái cục bộ, không có thanh toán.
 - Bộ đếm giờ vẫn đúng sau khi xoay màn hình hoặc quay lại ứng dụng, nhưng chỉ kêu khi ứng dụng đang mở; chưa có thông báo nền.

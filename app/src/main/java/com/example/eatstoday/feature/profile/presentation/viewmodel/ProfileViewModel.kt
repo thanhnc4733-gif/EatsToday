@@ -2,15 +2,17 @@ package com.example.eatstoday.feature.profile.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.eatstoday.data.model.AppNotification
+import com.example.eatstoday.data.model.FeedNotification
+import com.example.eatstoday.data.repository.FeedRepository
 import com.example.eatstoday.data.model.AppSettings
 import com.example.eatstoday.data.model.AppThemeMode
 import com.example.eatstoday.data.model.CookHistory
-import com.example.eatstoday.data.model.FriendStatus
+import com.example.eatstoday.data.model.RequestStatus
+import com.example.eatstoday.data.repository.FriendRepository
+import kotlinx.coroutines.flow.catch
 import com.example.eatstoday.data.model.TextSizeOption
 import com.example.eatstoday.data.model.User
 import com.example.eatstoday.data.repository.RecipeRepository
-import com.example.eatstoday.data.repository.SocialRepository
 import com.example.eatstoday.data.repository.UserRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -25,17 +27,20 @@ private fun <T> Flow<T>.asState(vm: ViewModel, initial: T): StateFlow<T> =
 
 class ProfileViewModel(
     private val userRepository: UserRepository,
-    private val socialRepository: SocialRepository,
+    private val feedRepository: FeedRepository,
+    private val friendRepository: FriendRepository,
     recipeRepository: RecipeRepository,
     private val applicationScope: CoroutineScope,
 ) : ViewModel() {
     val user: StateFlow<User> = userRepository.user.asState(this, User())
     val settings: StateFlow<AppSettings> = userRepository.settings.asState(this, AppSettings())
     val history: StateFlow<List<CookHistory>> = recipeRepository.history.asState(this, emptyList())
-    val friendCount: StateFlow<Int> = socialRepository.friends
-        .map { list -> list.count { it.status == FriendStatus.FRIEND } }
+    val friendCount: StateFlow<Int> = friendRepository.requests
+        .map { list -> list.count { it.status == RequestStatus.ACCEPTED } }
+        .catch { emit(0) }
         .asState(this, 0)
-    val notifications: StateFlow<List<AppNotification>> = socialRepository.notifications.asState(this, emptyList())
+    val notifications: StateFlow<List<FeedNotification>> = feedRepository.notifications.asState(this, emptyList())
+    val signedIn: StateFlow<Boolean> = feedRepository.uid.map { it != null }.asState(this, true)
 
     fun updateProfile(name: String, email: String) {
         viewModelScope.launch { userRepository.updateProfile(name.trim(), email.trim()) }
@@ -63,7 +68,7 @@ class ProfileViewModel(
 
     /** Chạy ở scope của ứng dụng để vẫn hoàn tất khi màn hình đã đóng. */
     fun markNotificationsRead() {
-        applicationScope.launch { socialRepository.markNotificationsRead() }
+        applicationScope.launch { runCatching { feedRepository.markAllRead() } }
     }
 
     fun activatePremium(onDone: () -> Unit) {

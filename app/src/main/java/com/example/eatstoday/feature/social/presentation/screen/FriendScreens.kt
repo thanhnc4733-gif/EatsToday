@@ -2,38 +2,86 @@ package com.example.eatstoday.feature.social.presentation.screen
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.eatstoday.core.components.*
 import com.example.eatstoday.core.utils.AppViewModelProvider
+import com.example.eatstoday.core.utils.FriendQr
 import com.example.eatstoday.core.utils.normalizedForSearch
-import com.example.eatstoday.data.model.Friend
-import com.example.eatstoday.data.model.FriendStatus
+import com.example.eatstoday.core.utils.relativeTime
+import com.example.eatstoday.data.model.FriendProfile
+import com.example.eatstoday.data.model.Relation
+import com.example.eatstoday.feature.social.presentation.viewmodel.FriendsUiState
 import com.example.eatstoday.feature.social.presentation.viewmodel.FriendsViewModel
 import kotlinx.coroutines.launch
 
+/** Hiện thông báo của ViewModel bằng snackbar rồi xóa để không hiện lại khi xoay màn hình. */
 @Composable
-private fun FriendRow(
-    friend: Friend,
+private fun FriendMessages(viewModel: FriendsViewModel) {
+    val message by viewModel.message.collectAsStateWithLifecycle()
+    val snackbar = LocalSnackbar.current
+    LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(it)
+            viewModel.clearMessage()
+        }
+    }
+}
+
+/**
+ * Phần chung của mọi màn bạn bè: chưa đăng nhập, đang tải, lỗi Firestore.
+ * Trả về true nếu đã vẽ một trạng thái thay cho nội dung chính.
+ */
+@Composable
+private fun ColumnScopeGate(state: FriendsUiState, viewModel: FriendsViewModel, onSignIn: () -> Unit): Boolean {
+    when {
+        !state.signedIn -> EmptyState(
+            "Cần tài khoản",
+            "Đăng nhập để kết bạn",
+            "Kết bạn cần một tài khoản để bạn bè tìm thấy bạn. Bạn đang dùng ứng dụng không có tài khoản.",
+            actionLabel = "Đăng nhập",
+            onAction = onSignIn,
+        )
+        state.error != null && state.me == null -> EmptyState(
+            "Lỗi",
+            "Chưa tải được bạn bè",
+            state.error,
+            actionLabel = "Thử lại",
+            onAction = viewModel::retry,
+        )
+        state.loading -> EatsLoading(Modifier.height(240.dp))
+        else -> return false
+    }
+    return true
+}
+
+@Composable
+private fun PersonRow(
+    profile: FriendProfile,
     subtitle: String,
     onClick: (() -> Unit)? = null,
-    highlighted: Boolean = false,
     action: @Composable (() -> Unit)? = null,
 ) {
     EatsCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            UserAvatar(friend.avatarText, highlighted = highlighted)
+            UserAvatar(profile.avatarText)
             Column(Modifier.weight(1f)) {
-                Text(friend.name, style = MaterialTheme.typography.titleSmall)
+                Text(profile.name, style = MaterialTheme.typography.titleSmall)
                 if (subtitle.isNotEmpty()) {
                     Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -46,99 +94,120 @@ private fun FriendRow(
 @Composable
 fun FriendListScreen(
     onBack: () -> Unit,
-    onFriendClick: (Long) -> Unit,
+    onFriendClick: (String) -> Unit,
     onAdd: () -> Unit,
     onRequests: () -> Unit,
+    onSignIn: () -> Unit,
     viewModel: FriendsViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
-    val all by viewModel.all.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
-    val friends = all.filter { it.status == FriendStatus.FRIEND }
-    val shown = friends.filter { it.name.normalizedForSearch().contains(query.normalizedForSearch()) }
-    val requestCount = all.count { it.status == FriendStatus.REQUEST_RECEIVED }
+    FriendMessages(viewModel)
     ScreenColumn {
-        TopActions { EatsChip("Thêm", true, onAdd) }
-        Text("Bạn bè (${friends.size})", style = MaterialTheme.typography.headlineMedium)
-        EatsSearchBar(query, { query = it }, "Tìm bạn...")
-        if (requestCount > 0) {
+        if (state.signedIn) TopActions { EatsChip("Thêm", true, onAdd) }
+        Text("Bạn bè (${state.friends.size})", style = MaterialTheme.typography.headlineMedium)
+        if (ColumnScopeGate(state, viewModel, onSignIn)) return@ScreenColumn
+        if (state.incoming.isNotEmpty() || state.outgoing.isNotEmpty()) {
             EatsCard(onClick = onRequests, modifier = Modifier.fillMaxWidth()) {
-                Text("Lời mời kết bạn ($requestCount)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    "Lời mời kết bạn: ${state.incoming.size} nhận được, ${state.outgoing.size} đã gửi",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
         }
-        val cooking = shown.filter { it.cookingNow != null }
-        if (cooking.isNotEmpty()) {
-            Text("Đang nấu", style = MaterialTheme.typography.titleMedium)
-            cooking.forEach { friend ->
-                FriendRow(friend, "Đang nấu ${friend.cookingNow}", { onFriendClick(friend.id) }, highlighted = true)
-            }
+        if (state.friends.isEmpty()) {
+            EmptyState(
+                "Chưa có bạn",
+                "Bạn chưa có bạn bè nào",
+                "Gửi mã bạn bè của bạn cho người quen, hoặc tìm họ bằng mã, email hay mã QR.",
+                actionLabel = "Thêm bạn bè",
+                onAction = onAdd,
+            )
+            return@ScreenColumn
         }
-        Text("Tất cả bạn bè", style = MaterialTheme.typography.titleMedium)
-        if (shown.isEmpty()) {
-            Text("Không tìm thấy bạn nào.", style = MaterialTheme.typography.bodySmall)
-        }
-        shown.forEach { friend ->
-            FriendRow(friend, "Nấu ${friend.cookedCount} món", { onFriendClick(friend.id) })
+        EatsSearchBar(query, { query = it }, "Tìm bạn...")
+        val shown = state.friends.filter { it.first.name.normalizedForSearch().contains(query.normalizedForSearch()) }
+        if (shown.isEmpty()) Text("Không tìm thấy bạn nào.", style = MaterialTheme.typography.bodySmall)
+        shown.forEach { (profile, request) ->
+            PersonRow(profile, "Bạn bè từ ${relativeTime(request.createdAt)}", { onFriendClick(profile.uid) })
         }
     }
 }
 
 @Composable
 fun AddFriendScreen(
-    onBack: () -> Unit,
+    onSignIn: () -> Unit,
     viewModel: FriendsViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
-    val all by viewModel.all.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val search by viewModel.search.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = LocalSnackbar.current
     val scope = rememberCoroutineScope()
     var query by rememberSaveable { mutableStateOf("") }
-    fun needsBackend(feature: String) {
-        scope.launch { snackbar.showSnackbar("$feature cần có backend, chưa có trong bản này") }
-    }
-    val candidates = all.filter {
-        it.status != FriendStatus.FRIEND && it.status != FriendStatus.REQUEST_RECEIVED &&
-            it.name.normalizedForSearch().contains(query.normalizedForSearch())
-    }
+    FriendMessages(viewModel)
     ScreenColumn {
         Text("Thêm bạn bè", style = MaterialTheme.typography.headlineMedium)
-        Text("Nấu cùng nhau vui hơn", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        EatsSearchBar(query, { query = it }, "Tìm theo tên hoặc ID")
-        AddOption("QR", "Mã QR của tôi", "Bạn bè quét để kết bạn") { needsBackend("Mã QR") }
-        AddOption("Link", "Chia sẻ lời mời", "Gửi qua Zalo, Messenger...") {
-            val intent = Intent(Intent.ACTION_SEND)
-                .setType("text/plain")
-                .putExtra(Intent.EXTRA_TEXT, "Cùng nấu ăn với mình trên EatsToday nhé!")
-            try {
-                context.startActivity(Intent.createChooser(intent, "Chia sẻ lời mời"))
-            } catch (e: ActivityNotFoundException) {
-                needsBackend("Chia sẻ")
-            }
-        }
-        AddOption("DB", "Tìm trong danh bạ", "Cần cho phép truy cập danh bạ") { needsBackend("Tìm trong danh bạ") }
-        Text("Gợi ý cho bạn", style = MaterialTheme.typography.titleMedium)
-        if (candidates.isEmpty()) {
-            Text("Không có gợi ý phù hợp.", style = MaterialTheme.typography.bodySmall)
-        }
-        candidates.forEach { friend ->
-            FriendRow(friend, friend.note) {
-                if (friend.status == FriendStatus.REQUEST_SENT) {
-                    SecondaryButton("Hủy", { viewModel.cancelRequest(friend.id) }, Modifier.width(88.dp), height = 44.dp)
-                } else {
-                    PrimaryButton("Thêm", { viewModel.sendRequest(friend.id) }, Modifier.width(88.dp), height = 44.dp)
-                }
-            }
-        }
-    }
-}
+        if (ColumnScopeGate(state, viewModel, onSignIn)) return@ScreenColumn
+        val me = state.me ?: return@ScreenColumn
 
-@Composable
-private fun AddOption(icon: String, title: String, subtitle: String, onClick: () -> Unit) {
-    EatsCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            FoodImage(icon, Modifier.size(56.dp))
-            Column {
-                Text(title, style = MaterialTheme.typography.titleSmall)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // Mã của tôi
+        EatsCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Mã bạn bè của bạn", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(me.friendCode, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = 4.sp, color = MaterialTheme.colorScheme.primary)
+                val qr = remember(me.friendCode) { FriendQr.bitmap(FriendQr.content(me.friendCode)).asImageBitmap() }
+                Image(qr, contentDescription = "Mã QR kết bạn của bạn", modifier = Modifier.size(180.dp).clip(RoundedCornerShape(12.dp)))
+                Text("Bạn bè quét mã này trong mục Thêm bạn bè", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                SecondaryButton("Chia sẻ mã", {
+                    val text = "Kết bạn với mình trên EatsToday nhé! Mã bạn bè của mình: ${me.friendCode}"
+                    val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+                    try {
+                        context.startActivity(Intent.createChooser(intent, "Chia sẻ mã bạn bè"))
+                    } catch (e: ActivityNotFoundException) {
+                        scope.launch { snackbar.showSnackbar("Không có ứng dụng nào để chia sẻ") }
+                    }
+                })
+            }
+        }
+
+        // Tìm người khác
+        Text("Tìm bạn", style = MaterialTheme.typography.titleMedium)
+        EatsSearchBar(query, { query = it; viewModel.clearSearch() }, "Nhập mã bạn bè hoặc email")
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PrimaryButton(
+                if (search.busy) "Đang tìm..." else "Tìm",
+                { viewModel.search(query) },
+                Modifier.weight(1f),
+                enabled = query.isNotBlank() && !search.busy,
+                height = 48.dp,
+            )
+            SecondaryButton("Quét mã QR", {
+                scope.launch {
+                    try {
+                        FriendQr.scan(context)?.let { raw ->
+                            query = FriendQr.parse(raw) ?: raw
+                            viewModel.onScanned(raw)
+                        }
+                    } catch (e: Exception) {
+                        snackbar.showSnackbar("Máy này chưa quét mã được. Hãy nhập mã bằng tay")
+                    }
+                }
+            }, Modifier.weight(1f), height = 48.dp)
+        }
+        if (search.notFound) {
+            Text("Không tìm thấy ai với mã hoặc email này.", style = MaterialTheme.typography.bodySmall)
+        }
+        search.result?.let { found ->
+            PersonRow(found, "Mã ${found.friendCode}") {
+                when (state.relationOf(found.uid)) {
+                    Relation.SELF -> Text("Bạn", style = MaterialTheme.typography.labelMedium)
+                    Relation.FRIEND -> Text("Đã là bạn", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Relation.SENT -> Text("Đã gửi", style = MaterialTheme.typography.labelMedium)
+                    Relation.RECEIVED -> PrimaryButton("Đồng ý", { viewModel.acceptFrom(found.uid) }, Modifier.width(96.dp), height = 44.dp)
+                    Relation.NONE -> PrimaryButton("Kết bạn", { viewModel.sendRequest(found) }, Modifier.width(104.dp), height = 44.dp)
+                }
             }
         }
     }
@@ -146,46 +215,35 @@ private fun AddOption(icon: String, title: String, subtitle: String, onClick: ()
 
 @Composable
 fun RequestsScreen(
-    onBack: () -> Unit,
-    onFriendClick: (Long) -> Unit,
+    onSignIn: () -> Unit,
     viewModel: FriendsViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
-    val all by viewModel.all.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     var showSent by rememberSaveable { mutableStateOf(false) }
-    val received = all.filter { it.status == FriendStatus.REQUEST_RECEIVED }
-    val sent = all.filter { it.status == FriendStatus.REQUEST_SENT }
+    FriendMessages(viewModel)
     ScreenColumn {
         Text("Lời mời kết bạn", style = MaterialTheme.typography.headlineMedium)
+        if (ColumnScopeGate(state, viewModel, onSignIn)) return@ScreenColumn
         ChipRow {
-            EatsChip("Nhận được (${received.size})", !showSent, { showSent = false })
-            EatsChip("Đã gửi (${sent.size})", showSent, { showSent = true })
+            EatsChip("Nhận được (${state.incoming.size})", !showSent, { showSent = false })
+            EatsChip("Đã gửi (${state.outgoing.size})", showSent, { showSent = true })
         }
         if (showSent) {
-            sent.forEach { friend ->
-                FriendRow(friend, "Đang chờ đồng ý") {
-                    SecondaryButton("Hủy", { viewModel.cancelRequest(friend.id) }, Modifier.width(88.dp), height = 44.dp)
+            if (state.outgoing.isEmpty()) Text("Chưa gửi lời mời nào.", style = MaterialTheme.typography.bodySmall)
+            state.outgoing.forEach { request ->
+                PersonRow(FriendProfile(request.to, request.toName, request.toCode), "Đang chờ đồng ý") {
+                    SecondaryButton("Hủy", { viewModel.cancel(request) }, Modifier.width(88.dp), height = 44.dp)
                 }
             }
-            if (sent.isEmpty()) Text("Chưa gửi lời mời nào.", style = MaterialTheme.typography.bodySmall)
         } else {
-            received.forEach { friend ->
-                FriendRow(friend, friend.note, { onFriendClick(friend.id) }) {
+            if (state.incoming.isEmpty()) Text("Không có lời mời mới.", style = MaterialTheme.typography.bodySmall)
+            state.incoming.forEach { request ->
+                PersonRow(FriendProfile(request.from, request.fromName, request.fromCode), "Gửi ${relativeTime(request.createdAt)}") {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        LinkButton("Từ chối", { viewModel.decline(friend.id) })
-                        PrimaryButton("Đồng ý", { viewModel.accept(friend.id) }, Modifier.width(88.dp), height = 44.dp)
+                        LinkButton("Từ chối", { viewModel.decline(request) })
+                        PrimaryButton("Đồng ý", { viewModel.accept(request) }, Modifier.width(88.dp), height = 44.dp)
                     }
                 }
-            }
-            if (received.isEmpty()) {
-                Text("Không có lời mời mới.", style = MaterialTheme.typography.bodySmall)
-            } else {
-                Text(
-                    "Chạm vào tên để xem hồ sơ trước khi đồng ý",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }
         }
     }
@@ -197,62 +255,51 @@ fun FriendProfileScreen(
     onSendDish: () -> Unit,
     viewModel: FriendsViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
-    val friend by viewModel.friend.collectAsStateWithLifecycle()
-    val snackbar = LocalSnackbar.current
-    val scope = rememberCoroutineScope()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     var confirmRemove by rememberSaveable { mutableStateOf(false) }
-    val current = friend
+    FriendMessages(viewModel)
+    val friend = state.friends.firstOrNull { it.first.uid == viewModel.friendUid }
     ScreenColumn {
-        if (current == null) {
-            EatsLoading(Modifier.height(200.dp))
+        if (friend == null) {
+            if (state.loading) {
+                EatsLoading(Modifier.height(200.dp))
+            } else {
+                EmptyState("Không thấy", "Không còn là bạn bè", "Người này không còn trong danh sách bạn bè của bạn.", actionLabel = "Quay lại", onAction = onBack)
+            }
             return@ScreenColumn
         }
-        Column(
-            Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            UserAvatar(current.avatarText, size = 88.dp)
-            Text(current.name, style = MaterialTheme.typography.headlineMedium)
+        val (profile, request) = friend
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            UserAvatar(profile.avatarText, size = 88.dp)
+            Text(profile.name, style = MaterialTheme.typography.headlineMedium)
             Text(
-                "Nấu ${current.cookedCount} món · Món sở trường: ${current.specialty}",
+                "Mã ${profile.friendCode} · Bạn bè từ ${relativeTime(request.createdAt)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PrimaryButton("Gửi món", onSendDish, Modifier.weight(1f), height = 48.dp)
-            SecondaryButton(
-                "Nhắn tin",
-                { scope.launch { snackbar.showSnackbar("Nhắn tin cần có backend, chưa có trong bản này") } },
-                Modifier.weight(1f),
-                height = 48.dp,
+        PrimaryButton("Nấu và đăng món", onSendDish)
+        EatsCard(Modifier.fillMaxWidth()) {
+            Text(
+                "Món của bạn bè sẽ hiện ở đây khi ứng dụng đồng bộ bài đăng (đang phát triển).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Text("Món gần đây của ${current.name}", style = MaterialTheme.typography.titleMedium)
-        repeat(2) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                FoodImage("Ảnh món", Modifier.weight(1f).height(120.dp))
-                FoodImage("Ảnh món", Modifier.weight(1f).height(120.dp))
-            }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            LinkButton("Hủy kết bạn", { confirmRemove = true })
         }
-        if (current.status == FriendStatus.FRIEND) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                LinkButton("Xóa bạn", { confirmRemove = true })
-            }
-        }
-        if (confirmRemove) {
-            ConfirmationDialog(
-                title = "Xóa bạn?",
-                message = "${current.name} sẽ bị xóa khỏi danh sách bạn bè.",
-                confirmLabel = "Xóa",
-                onConfirm = {
-                    viewModel.remove(current.id)
-                    confirmRemove = false
-                    onBack()
-                },
-                onDismiss = { confirmRemove = false },
-            )
-        }
+    }
+    if (confirmRemove && friend != null) {
+        ConfirmationDialog(
+            title = "Hủy kết bạn?",
+            message = "${friend.first.name} sẽ bị xóa khỏi danh sách bạn bè của bạn, và bạn cũng biến mất khỏi danh sách của họ.",
+            confirmLabel = "Hủy kết bạn",
+            onConfirm = {
+                confirmRemove = false
+                viewModel.removeFriend(friend.first.uid, onBack)
+            },
+            onDismiss = { confirmRemove = false },
+        )
     }
 }

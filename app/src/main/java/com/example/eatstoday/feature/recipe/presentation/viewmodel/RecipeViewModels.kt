@@ -13,7 +13,7 @@ import com.example.eatstoday.data.model.Recipe
 import com.example.eatstoday.data.model.User
 import com.example.eatstoday.data.repository.PantryRepository
 import com.example.eatstoday.data.repository.RecipeRepository
-import com.example.eatstoday.data.repository.SocialRepository
+import com.example.eatstoday.data.repository.FeedRepository
 import com.example.eatstoday.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -41,7 +41,7 @@ data class HomeUiState(
 class HomeViewModel(
     private val recipeRepository: RecipeRepository,
     userRepository: UserRepository,
-    socialRepository: SocialRepository,
+    feedRepository: FeedRepository,
 ) : ViewModel() {
     private val quickFilter = MutableStateFlow(QuickFilter.ALL)
     private val meal = MutableStateFlow<MealType?>(null)
@@ -50,7 +50,7 @@ class HomeViewModel(
         quickFilter,
         meal,
         userRepository.preferences,
-        socialRepository.notifications,
+        feedRepository.notifications,
         userRepository.user,
     ) { filter, selectedMeal, preferences, notifications, user ->
         val recipes = recipeRepository.recipes
@@ -65,7 +65,7 @@ class HomeViewModel(
             .filter { selectedMeal == null || selectedMeal in it.meals }
             // Món hợp khẩu vị đã chọn được đưa lên trước.
             .sortedByDescending { it.cuisine in preferences.cuisines }
-        HomeUiState(recipes, filter, selectedMeal, notifications.count { !it.isRead }, user)
+        HomeUiState(recipes, filter, selectedMeal, notifications.count { !it.read }, user)
     }.asState(this, HomeUiState())
 
     fun selectQuickFilter(filter: QuickFilter) {
